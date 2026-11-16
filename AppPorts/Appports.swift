@@ -96,10 +96,15 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationWillTerminate(_ notification: Notification) {
+        MCPGateway.shared.stop()
         MigrationTaskCenter.shared.saveHistoryForExit()
     }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        // A unit-test host must not open the loopback endpoint.
+        if ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] == nil {
+            MCPGateway.shared.startIfEnabled()
+        }
         AppUpdateInstaller.acknowledgeLaunch()
         ShipItRecoveryMonitor.shared.start()
         // 应用可能被移动过：校准登录代理指向的程序，免得它指向一个已经不存在的路径。
