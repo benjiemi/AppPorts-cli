@@ -63,7 +63,7 @@ final class MCPProtocolTests: XCTestCase {
 
     func testToolCatalogIsWellFormed() {
         let tools = MCPToolService.tools
-        XCTAssertEqual(tools.count, 7)
+        XCTAssertEqual(tools.count, 13)
         XCTAssertEqual(Set(tools.map(\.name)).count, tools.count)
         for tool in tools {
             XCTAssertTrue(tool.name.hasPrefix("appports_"), tool.name)

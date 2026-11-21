@@ -32,7 +32,7 @@ struct MCPSettingsSection: View {
                     .font(.headline)
             }
 
-            Text("允许本机 AI 客户端读取应用列表，并创建迁移与回迁任务；任务会出现在任务中心，与手动操作一致。")
+            Text("允许本机 AI 客户端读取应用与数据目录列表，并创建应用、路径与数据迁移任务；任务会出现在任务中心，与手动操作一致。")
                 .font(.callout)
                 .foregroundColor(.secondary)
                 .fixedSize(horizontal: false, vertical: true)

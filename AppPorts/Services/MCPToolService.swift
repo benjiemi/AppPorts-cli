@@ -150,10 +150,12 @@ final class MCPToolService {
         }
     }
 
-    private let environment: Environment
+    let environment: Environment
+    let dataEnvironment: DataEnvironment
 
-    init(environment: Environment? = nil) {
+    init(environment: Environment? = nil, dataEnvironment: DataEnvironment? = nil) {
         self.environment = environment ?? .live()
+        self.dataEnvironment = dataEnvironment ?? .live()
     }
 
     // MARK: Catalog
@@ -230,6 +232,81 @@ final class MCPToolService {
             destructive: false
         ),
         MCPToolDefinition(
+            name: "appports_list_paths",
+            title: "列出数据目录",
+            description: "列出可迁移的数据目录：应用关联的 ~/Library 目录、工具目录与自定义目录，含状态、大小与迁移方式。只读；完整扫描可能需要数秒。",
+            inputSchema: MCPToolSchema.object(properties: [
+                "app_path": MCPToolSchema.string(description: "本地应用路径，用于列出该应用的数据目录，例如 /Applications/Foo.app。"),
+                "scope": MCPToolSchema.string(description: "app、tools、custom 或 all，默认 all。",
+                                              values: ["app", "tools", "custom", "all"]),
+                "query": MCPToolSchema.string(description: "按名称或路径包含的关键字过滤，忽略大小写。"),
+                "limit": MCPToolSchema.integer(description: "每个范围最多返回的条目数，默认 100，最大 500。",
+                                               minimum: 1, maximum: 500, defaultValue: 100),
+            ]),
+            readOnly: true,
+            destructive: false
+        ),
+        MCPToolDefinition(
+            name: "appports_migrate_path",
+            title: "迁移数据目录",
+            description: "把应用数据目录、工具目录或自定义目录迁移到外置存储：容器目录用挂载迁移，其余用符号链接迁移。任务会出现在 AppPorts 任务中心，可暂停、取消或重试。",
+            inputSchema: MCPToolSchema.object(properties: [
+                "path": MCPToolSchema.string(description: "要迁移的目录绝对路径，例如 ~/Library/Caches/com.foo.bar 或 ~/.npm。"),
+                "app_path": MCPToolSchema.string(description: "当 path 是应用数据目录时，提供对应应用的本地路径。"),
+                "destination_root": MCPToolSchema.string(description: "外置存储根目录；省略时使用 AppPorts 已选择的目录。"),
+                "mode": MCPToolSchema.string(description: "auto、link 或 mount，默认 auto：容器目录用 mount，其余用 link。",
+                                             values: ["auto", "link", "mount"]),
+            ], required: ["path"]),
+            readOnly: false,
+            destructive: true
+        ),
+        MCPToolDefinition(
+            name: "appports_restore_path",
+            title: "还原数据目录",
+            description: "把已迁移的数据目录复制回本地并收回链接或挂载卷。任务会出现在 AppPorts 任务中心，可暂停、取消或重试。",
+            inputSchema: MCPToolSchema.object(properties: [
+                "path": MCPToolSchema.string(description: "数据目录在本地原位置的路径。"),
+                "app_path": MCPToolSchema.string(description: "当 path 是应用数据目录时，提供对应应用的本地路径。"),
+            ], required: ["path"]),
+            readOnly: false,
+            destructive: true
+        ),
+        MCPToolDefinition(
+            name: "appports_list_data_migrations",
+            title: "列出数据迁移记录",
+            description: "返回数据目录的挂载记录、托管链接、迁移日志与待清理事项，以及微信账号的迁移状态。只读。",
+            inputSchema: MCPToolSchema.object(properties: [
+                "app_path": MCPToolSchema.string(description: "只看这个应用相关的记录；省略时返回全部。"),
+                "limit": MCPToolSchema.integer(description: "每类最多返回的记录数，默认 20，最大 100。",
+                                               minimum: 1, maximum: 100, defaultValue: 20),
+            ]),
+            readOnly: true,
+            destructive: false
+        ),
+        MCPToolDefinition(
+            name: "appports_migrate_wechat_account",
+            title: "迁移微信账号数据",
+            description: "把微信账号数据按账号拆分或其他方式挂载迁移到外置存储。需要用户已开启微信账号拆分迁移（split 模式）。任务会出现在 AppPorts 任务中心。",
+            inputSchema: MCPToolSchema.object(properties: [
+                "account_path": MCPToolSchema.string(description: "微信账号目录，例如 ~/Library/Containers/com.tencent.xinWeChat/Data/Documents/xwechat_files/wxid_xxx。"),
+                "mode": MCPToolSchema.string(description: "split 或 whole，默认 split。",
+                                             values: ["split", "whole"]),
+                "destination_root": MCPToolSchema.string(description: "外置存储根目录；省略时使用 AppPorts 已选择的目录。"),
+            ], required: ["account_path"]),
+            readOnly: false,
+            destructive: true
+        ),
+        MCPToolDefinition(
+            name: "appports_restore_wechat_account",
+            title: "还原微信账号数据",
+            description: "把拆分迁移的微信账号数据复制回本地并收回挂载卷。任务会出现在 AppPorts 任务中心，可暂停、取消或重试。",
+            inputSchema: MCPToolSchema.object(properties: [
+                "account_path": MCPToolSchema.string(description: "微信账号目录的本地原位置。"),
+            ], required: ["account_path"]),
+            readOnly: false,
+            destructive: true
+        ),
+        MCPToolDefinition(
             name: "appports_cancel_task",
             title: "取消任务",
             description: "请求取消一个排队中或执行中的迁移任务。已完成的文件步骤不会回滚，任务会在当前边界安全收尾。",
@@ -265,6 +342,18 @@ final class MCPToolService {
                 return try taskStatus(args)
             case "appports_cancel_task":
                 return try cancelTask(args)
+            case "appports_list_paths":
+                return try await listPaths(args)
+            case "appports_migrate_path":
+                return try await migratePath(args)
+            case "appports_restore_path":
+                return try await restorePath(args)
+            case "appports_list_data_migrations":
+                return try await listDataMigrations(args)
+            case "appports_migrate_wechat_account":
+                return try await migrateWeChatAccount(args)
+            case "appports_restore_wechat_account":
+                return try await restoreWeChatAccount(args)
             default:
                 throw MCPToolError.unknownTool(name)
             }
@@ -582,7 +671,7 @@ final class MCPToolService {
 
     // MARK: Payloads
 
-    private func appPayload(_ app: AppItem) -> [String: Any] {
+    func appPayload(_ app: AppItem) -> [String: Any] {
         var payload: [String: Any] = [
             "name": app.name,
             "display_name": app.displayName,
@@ -641,7 +730,7 @@ final class MCPToolService {
 
     // MARK: Helpers
 
-    private func resolveRoot(explicit args: MCPArguments) throws -> URL? {
+    func resolveRoot(explicit args: MCPArguments) throws -> URL? {
         let root: URL?
         if let value = try args.optionalString("destination_root") {
             root = URL(fileURLWithPath: value).standardizedFileURL
@@ -664,7 +753,7 @@ final class MCPToolService {
         return root
     }
 
-    private static var noDestinationFailure: MCPToolResult {
+    static var noDestinationFailure: MCPToolResult {
         .failure(code: "NO_EXTERNAL_ROOT",
                  message: "尚未选择外置存储目录。",
                  hint: "在 AppPorts 中选择外置存储，或在调用时提供 destination_root。")
@@ -690,7 +779,7 @@ final class MCPToolService {
         }
     }
 
-    private static func iso8601(_ date: Date) -> String {
+    static func iso8601(_ date: Date) -> String {
         let formatter = ISO8601DateFormatter()
         formatter.formatOptions = [.withInternetDateTime]
         return formatter.string(from: date)

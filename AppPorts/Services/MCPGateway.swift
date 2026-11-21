@@ -239,11 +239,19 @@ final class MCPGateway: ObservableObject {
 
     nonisolated static let instructions = """
     AppPorts moves macOS applications between /Applications and an external volume, keeping a local entry that \
-    launches the external copy. Tools can list applications, create migrations, restore them back to local \
-    storage, and read task progress. Every mutation runs as an AppPorts task: it appears in the app's task \
-    center, can be paused or cancelled, and leaves the same journals and records as a manual operation. \
-    Read appports_status first. Refuse to migrate system applications, running applications, or App Store / \
-    iOS applications unless the app's settings allow it. Start a migration only when the destination root is \
-    the external volume the user actually chose.
+    launches the external copy. It also moves two other kinds of data the same way: application data \
+    directories, tool directories and custom directories (by symlink, or by mounting a container volume), and \
+    application container data including WeChat accounts. Tools can list applications, paths and data \
+    migration records, create migrations, restore them, and read task progress. Every mutation runs as an \
+    AppPorts task: it appears in the app's task center, can be paused or cancelled, and leaves the same \
+    journals, mount records and cleanup entries as a manual operation. Read appports_status first, then \
+    appports_list_apps or appports_list_paths before naming a target. Application data directories need \
+    app_path so the path can be attributed to one application. Container directories cannot be symlinked; \
+    they migrate by mounting an APFS volume, so mode=mount (or auto) is required unless the user has enabled \
+    classic mode. Refuse to migrate system applications, running applications, or App Store / iOS applications \
+    unless the app's settings allow it, and start a migration only when the destination root is the external \
+    volume the user actually chose. WeChat account data additionally requires the user to have enabled \
+    account split migration; whole-container migration is offered only through appports_migrate_wechat_account \
+    with mode=whole.
     """
 }
