@@ -125,6 +125,10 @@ struct AppStoreSettingsView: View {
 
             readinessSection
 
+            Divider()
+
+            MCPSettingsSection()
+
             if isMASExternalSupported {
                 // macOS 15.1+：自动启用，显示说明
                 VStack(alignment: .leading, spacing: 12) {

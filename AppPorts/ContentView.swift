@@ -1336,22 +1336,12 @@ struct ContentView: View {
         allowAppStoreMigration: Bool,
         allowIOSAppMigration: Bool
     ) -> String? {
-        if app.isSystemApp {
-            return "system_app"
-        }
-        if app.isRunning {
-            return "running"
-        }
-        if app.status == AppStatus.linked {
-            return "already_linked"
-        }
-        if app.isIOSApp && !allowIOSAppMigration {
-            return "ios_migration_disabled"
-        }
-        if app.isAppStoreApp && !allowAppStoreMigration {
-            return "app_store_migration_disabled"
-        }
-        return nil
+        // One gate for the UI and the MCP tools; see AppMigrationPolicy.
+        AppMigrationPolicy.skipReason(
+            for: app,
+            options: .init(allowAppStoreMigration: allowAppStoreMigration,
+                           allowIOSAppMigration: allowIOSAppMigration)
+        )?.rawValue
     }
     
     @MainActor
